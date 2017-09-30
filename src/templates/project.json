@@ -1,0 +1,41 @@
+{
+  "site": {
+    "url": "/",
+    "title": "Example Project",
+    "description": "Tagline or short description of example project"
+  },
+
+  "settings": {
+    "theme": "multiverse",
+    "sitemap": true,
+    "robots": true,
+    "data": {
+      "multiple": true,
+      "saveimg": true,
+      "imgcolumn": "image"
+    },
+    "slug": {
+      "upload": "uploads",
+      "item": "article"
+    }
+  },
+
+  "meta": {
+    "home": {
+      "title": "{{site.title}}",
+      "description": "{{site.description}}"
+    },
+
+    "single": {
+      "title": "{{item.title}} | {{site.title}}",
+      "description": "{{item.description}}",
+      "slug": "{{item.title}}"
+    },
+
+    "pages": {
+      "about": {
+        "title": "About Us | {{single.title}}"
+      }
+    }
+  }
+}

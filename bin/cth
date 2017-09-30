@@ -1,0 +1,26 @@
+#!/bin/bash node
+
+const program = require('caporal')
+const cth = require('../src/lib')
+const pkg = require('../package.json')
+
+program
+  .name(pkg.name)
+  .version(pkg.version)
+  .description(pkg.description)
+
+program
+  .command('new')
+  .argument('<project-name>', 'Project name', program.STRING)
+  .description('Init new project')
+  .action(cth.new)
+
+program
+  .command('build')
+  .argument('[csv-file]', 'Custom csv filename in csv directory')
+  .option('--clean', 'Clean directory before build', program.BOOLEAN)
+  .option('--overwrite', 'Overwrite if compiled file already exists', program.BOOLEAN)
+  .description('Build project')
+  .action(cth.build)
+
+program.parse(process.argv)
