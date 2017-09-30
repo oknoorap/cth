@@ -1,0 +1,8 @@
+exports.FOLDER_ALREADY_INIT = 'You can\'t init new project here, because your current directory is a project directory.'
+exports.FOLDER_ALREADY_EXISTS = 'directory already exists, please init another project name.'
+exports.NOT_IN_PROJECT_FOLDER = 'You are not in project directory.'
+exports.BUILD_HTML = 'start to build your first static html'
+exports.SUCCEED_INIT = 'Voila, congrats hero.'
+exports.NO_CSV_FILE = 'No Data (CSV file) to build.'
+exports.BUILD_LOADING = 'Please wait, while build in progress please keep calm...'
+exports.DONE = 'Done. You\'re welcome.'
