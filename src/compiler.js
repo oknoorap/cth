@@ -3,6 +3,8 @@ const {writeFileSync, readdirSync, readFileSync, statSync, existsSync} = require
 const mkdirp = require('mkdirp')
 const hbs = require('handlebars')
 
+hbs.registerHelper('fakevar', val => `{{${val}}}`)
+
 const scandir = dir => readdirSync(dir)
 
 const fileCompiler = ({srcPath, dstPath, syntax}) => {

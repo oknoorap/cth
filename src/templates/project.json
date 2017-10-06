@@ -22,19 +22,19 @@
 
   "meta": {
     "home": {
-      "title": "{{site.title}}",
-      "description": "{{site.description}}"
+      "title": "{{{fakevar 'site.title'}}}",
+      "description": "{{{fakevar 'site.description'}}}"
     },
 
-    "single": {
-      "title": "{{item.title}} | {{site.title}}",
-      "description": "{{item.description}}",
-      "slug": "{{item.title}}"
+    "item": {
+      "title": "{{{fakevar 'item.title'}}} | {{{fakevar 'site.title'}}}",
+      "description": "{{{fakevar 'item.content'}}}",
+      "slug": "{{{fakevar 'item.title'}}}"
     },
 
     "pages": {
       "about": {
-        "title": "About Us | {{single.title}}"
+        "title": "About Us | {{{fakevar 'single.title'}}}"
       }
     }
   }
