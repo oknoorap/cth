@@ -218,10 +218,11 @@ exports.build = (args, options) => {
 
     // Compile homepage.
     const homeHbs = [_themepath, 'home.hbs']
-    if (isFileExists(...homeHbs)) {
+    const indexHtml = path.join(_distpath, 'index.html')
+    if (isFileExists(...homeHbs) && (!isFileExists(indexHtml) || options.overwrite)) {
       compiler.single({
         srcPath: path.join(...homeHbs),
-        dstPath: path.join(_distpath, 'index.html'),
+        dstPath: indexHtml,
         syntax: syntax(project.meta.home, {
           is: {
             home: true
