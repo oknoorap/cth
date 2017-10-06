@@ -318,13 +318,9 @@ exports.build = (args, options) => {
   const buildParallel = filename => new Promise(resolve => {
     csv
       .fromStream(createReadStream(path.join(cwd, 'csv', filename)), {headers : true})
-      .on('data', item => {
-        data.push({
-          filename,
-          item
-        })
-      })
+      .on('data', item => data.push({filename, item}))
       .on('end', resolve)
   })
+
   Promise.all(csvList.map(buildParallel)).then(build).catch(logger.error)
 }
