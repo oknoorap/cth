@@ -1,3 +1,4 @@
+exports.PROJECT_NAME_UNAVAILABLE = 'Missing Project Name.'
 exports.FOLDER_ALREADY_INIT = 'You can\'t init new project here, because your current directory is a project directory.'
 exports.FOLDER_ALREADY_EXISTS = 'directory already exists, please init another project name.'
 exports.NOT_IN_PROJECT_FOLDER = 'You are not in project directory.'

@@ -25,6 +25,10 @@ exports.new = args => {
   const projectName = slugify(args.projectName)
   const projectDir = path.join(cwd, projectName)
 
+  if (!args.projectName) {
+    logger.error(message.PROJECT_NAME_UNAVAILABLE)
+  }
+
   if (isDirExists(projectDir)) {
     logger.error(`'${projectName}' ${message.FOLDER_ALREADY_EXISTS}`)
   }
