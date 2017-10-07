@@ -76,10 +76,6 @@ exports.build = (args, options) => {
 
   const project = require(path.join(cwd, 'project.json'))
   const csvDir = path.join(cwd, 'csv')
-  const distDir = path.join(cwd, 'dist')
-  const hooksDir = path.join(cwd, 'hooks')
-  const pagesDir = path.join(cwd, 'pages')
-  const themesDir = path.join(cwd, 'themes')
 
   let csvList = []
 
