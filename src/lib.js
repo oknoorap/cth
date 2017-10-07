@@ -227,6 +227,32 @@ exports.build = (args, options) => {
       })
     }
 
+    // Compile pages.
+    const pageHbs = [_themepath, 'page.hbs']
+    if (isFileExists(...pageHbs)) {
+      const pages = compiler.scandir(path.join(cwd, 'pages'))
+      pages.forEach(item => {
+        const pageExt = path.extname(item)
+        const pageName = path.basename(item, pageExt)
+        const pageHtml = path.join(_distpath, `${pageName}.html`)
+
+        if (pageName in project.meta.pages && pageExt === '.hbs' && (!isFileExists(pageHtml) || options.overwrite)) {
+          compiler.single({
+            srcPath: path.join(...pageHbs),
+            dstPath: pageHtml,
+            syntax: syntax(project.meta.pages[pageName], {
+              page: Object.assign({
+                content: readFileSync(path.join(cwd, 'pages', item))
+              }, project.meta.pages[pageName]),
+              is: {
+                page: true
+              }
+            })
+          })
+        }
+      })
+    }
+
     // Compile items.
     const itemHbs = [_themepath, 'item.hbs']
     const iterateItems = data.map((item, index) => {
