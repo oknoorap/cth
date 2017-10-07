@@ -280,14 +280,14 @@ exports.build = (args, options) => {
             resolve()
           })
 
-          if (!existsSync(dstPath) || options.overwrite) {
-            const {saveimg, imgcolumn} = project.settings.data
+          const {saveimg, imgcolumn} = project.settings.data
 
-            if (saveimg && imgcolumn in _item) {
-              const hash = crypto.createHash('md5').update(_item[imgcolumn]).digest('hex')
-              const imgext = path.extname(_item[imgcolumn])
-              const imgname = `${slug}-${hash}${imgext}`
+          if (saveimg && imgcolumn in _item) {
+            const hash = crypto.createHash('md5').update(_item[imgcolumn]).digest('hex')
+            const imgext = path.extname(_item[imgcolumn])
+            const imgname = `${slug}-${hash}${imgext}`
 
+            if (!isFileExists(path.join(_uploadpath, imgname)) || options.overwrite) {
               downloadImg = () => new Promise(resolve => {
                 // Apply predownload hooks.
                 const imgurl = _downloader.pre(_item[imgcolumn])
