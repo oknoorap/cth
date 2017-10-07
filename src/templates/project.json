@@ -27,14 +27,14 @@
     },
 
     "item": {
-      "title": "{{{fakevar 'item.title'}}} | {{{fakevar 'site.title'}}}",
+      "title": "{{{fakevar 'item.title'}}}",
       "description": "{{{fakevar 'item.content'}}}",
       "slug": "{{{fakevar 'item.title'}}}"
     },
 
     "pages": {
       "about": {
-        "title": "About Us | {{{fakevar 'single.title'}}}"
+        "title": "About Us"
       }
     }
   }
