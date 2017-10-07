@@ -12,21 +12,24 @@ exports.pre = url => {
 
 /**
  * After images downloaded to `settings.slug.uploads` directory.
+ * @param String file
  */
-exports.post = file => {
-  // Example
-  // const fs = require('fs')
-  // const sharp = require('sharp')
-  // sharp(file).flop().toBuffer((err, buffer) => {
-  //   if (err) {
-  //     throw err
-  //   }
+exports.post = () => {
+  return new Promise(resolve => {
+    // Example
+    // const fs = require('fs')
+    // const sharp = require('sharp')
+    // sharp(file).flop().toBuffer((err, buffer) => {
+    //   if (err) {
+    //     throw err
+    //   }
 
-  //   fs.writeFile(file, buffer, err => {
-  //     if (err) {
-  //       throw err
-  //     }
-  //   })
-  // })
-  return file
+    //   fs.writeFile(file, buffer, err => {
+    //     if (err) {
+    //       throw err
+    //     }
+    //   })
+    // })
+    resolve()
+  })
 }

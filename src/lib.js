@@ -144,7 +144,7 @@ exports.build = (args, options) => {
     // Downloader hooks
     let _downloader = {
       pre: url => url,
-      post: file => file
+      post: () => new Promise(resolve => resolve)
     }
     if (isFileExists(cwd, 'hooks', 'downloader.js')) {
       _downloader = Object.assign(_downloader, require(path.join(cwd, 'hooks', 'downloader')))
@@ -180,7 +180,8 @@ exports.build = (args, options) => {
         is: {
           home: false,
           item: false,
-          page: false
+          page: false,
+          imgdownloaded: false
         }
       }, data)
 
@@ -287,20 +288,23 @@ exports.build = (args, options) => {
             const imgext = path.extname(_item[imgcolumn])
             const imgname = `${slug}-${hash}${imgext}`
 
+            // Apply predownload hooks.
+            const imgurl = _downloader.pre(_item[imgcolumn])
+            _item[imgcolumn] = imgurl
+
             if (!isFileExists(path.join(_uploadpath, imgname)) || options.overwrite) {
               downloadImg = () => new Promise(resolve => {
-                // Apply predownload hooks.
-                const imgurl = _downloader.pre(_item[imgcolumn])
-
                 download(imgurl, _uploadpath, {
                   filename: imgname
                 }).then(() => {
-                  _item[imgcolumn] = imgname
+                  _item[imgcolumn] = path.join('..', project.settings.slug.upload, imgname)
+                  _syntax.is.imgdownloaded = true
 
                   // Apply post-download hooks.
-                  _downloader.post(path.join(_uploadpath, imgname))
-                  resolve()
-                }).catch(logger.error)
+                  _downloader.post(path.join(_uploadpath, imgname)).then(() => {
+                    resolve()
+                  })
+                }).catch(resolve)
               })
             }
           }
