@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <meta name="description" content="{{{fakevar 'description'}}}">
-  <title>{{{fakevar 'title'}}}</title>
-  <link href="{{{fakevar '#if is.home}}./{{else}}../{{/if'}}}assets/css/style.css" rel="stylesheet">
+  <title>{{{fakevar 'title'}}}{{{fakevar '#unless is.home'}}} | {{{fakevar 'site.title'}}}{{{fakevar '/unless'}}}</title>
+  <link href="{{{fakevar '#if is.home'}}}./{{{fakevar 'else'}}}../{{{fakevar '/if'}}}assets/css/style.css" rel="stylesheet">
 </head>
 <body>
