@@ -287,7 +287,7 @@ exports.build = (args, options) => {
           }
 
           const _syntax = syntax(project.meta.item, {
-            item: _item,
+            items: [_item],
             is: {
               item: true
             }
@@ -297,9 +297,9 @@ exports.build = (args, options) => {
           const dstPath = path.join(_itempath, `${slug}.html`)
 
           // Download image.
-          let downloadImg = () => new Promise(resolve => {
+          let downloadImg = (() => new Promise(resolve => {
             resolve()
-          })
+          }))()
 
           const {saveimg, imgcolumn} = project.settings.data
 
@@ -312,25 +312,30 @@ exports.build = (args, options) => {
             const imgurl = _downloader.pre(_item[imgcolumn])
             _item[imgcolumn] = imgurl
 
-            if (!isFileExists(path.join(_uploadpath, imgname)) || options.overwrite) {
-              downloadImg = () => new Promise(resolve => {
-                download(imgurl, _uploadpath, {
+            if (imgurl && !isFileExists(path.join(_uploadpath, imgname)) || options.overwrite) {
+              downloadImg = (() => new Promise(async resolve => {
+                await download(imgurl, _uploadpath, {
                   filename: imgname
                 }).then(() => {
                   _item[imgcolumn] = path.join('..', project.settings.slug.upload, imgname)
                   _syntax.is.imgdownloaded = true
 
                   // Apply post-download hooks.
-                  _downloader.post(path.join(_uploadpath, imgname)).then(() => {
+                  const _imgpath = path.join(_uploadpath, imgname)
+                  if (existsSync(_imgpath)) {
+                    _downloader.post(path.join(_uploadpath, imgname)).then(() => {
+                      resolve()
+                    }).catch(logger.error)
+                  } else {
                     resolve()
-                  })
+                  }
                 }).catch(resolve)
-              })
+              }))()
             }
           }
 
           if (!existsSync(dstPath) || options.overwrite) {
-            await downloadImg().then(() => {
+            await downloadImg.then(() => {
               loader.frame()
               loader.text = `Compiling ${item.filename} #${index}`
 
@@ -397,6 +402,20 @@ exports.build = (args, options) => {
             dstPath: sitemapXML,
             syntax: syntax({}, {
               sitemaps,
+              is: {
+                sitemap: true
+              }
+            })
+          })
+        }
+
+        const sitemapXSLSrc = [_themepath, 'sitemap.xsl']
+        const sitemapXSLDst = path.join(_distpath, 'sitemap.xsl')
+        if (isFileExists(...sitemapXSLSrc) && (!isFileExists(sitemapXSLDst) || options.overwrite)) {
+          compiler.single({
+            srcPath: path.join(...sitemapXSLSrc),
+            dstPath: sitemapXSLDst,
+            syntax: syntax({}, {
               is: {
                 sitemap: true
               }
