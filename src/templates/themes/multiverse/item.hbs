@@ -1,8 +1,10 @@
 {{{fakevar '> header'}}}
 
 <article>
-  Title: {{{fakevar 'item.title'}}}
-  Content: {{{fakevar 'item.content'}}}
+  {{{fakevar '#each items'}}}
+    Title: {{{fakevar 'this.title'}}}
+    Content: {{{fakevar 'this.content'}}}
+  {{{fakevar '/each'}}}
 </article>
 
 {{{fakevar '> footer'}}}
