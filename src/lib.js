@@ -7,6 +7,7 @@ const csv = require('fast-csv')
 const hbs = require('handlebars')
 const download = require('download')
 const crypto = require('crypto')
+const moment = require('moment')
 const logger = require('./logger')
 const message = require('./messages')
 const compiler = require('./compiler')
@@ -93,11 +94,18 @@ exports.build = (args, options) => {
     logger.error(message.NO_CSV_FILE)
   }
 
-  const data = []
-  const build = async () => {
-    const loader = logger.loader(message.BUILD_LOADING)
-    let _data = await data
+  let data = []
+  const parsingCSV = Promise.all(csvList.map(
+    filename => new Promise(resolve => {
+      csv
+        .fromStream(createReadStream(path.join(cwd, 'csv', filename)), {headers : true})
+        .on('data', item => data.push({filename, item}))
+        .on('end', resolve)
+    })
+  ))
 
+  const build = () => {
+    const loader = logger.loader(message.BUILD_LOADING)
     const _themepath = path.join(cwd, 'themes', project.settings.theme)
     const _distpath = path.join(cwd, 'dist')
     if (options.clean) {
@@ -123,7 +131,7 @@ exports.build = (args, options) => {
 
     // Apply pre build hooks.
     if (typeof _buildHooks.pre === 'function') {
-      _data = _buildHooks.pre(_data)
+      data = _buildHooks.pre(data)
     }
 
     // Register custom handlebars helper
@@ -181,6 +189,7 @@ exports.build = (args, options) => {
           home: false,
           item: false,
           page: false,
+          sitemap: true,
           imgdownloaded: false
         }
       }, data)
@@ -228,10 +237,21 @@ exports.build = (args, options) => {
       })
     }
 
+    // Compile robots.txt
+    const robotsTxtSrc = [_themepath, 'robots.txt']
+    const robotsTxt = path.join(_distpath, 'robots.txt')
+    if (project.settings.robots && (!isFileExists(robotsTxt) || options.overwrite)) {
+      compiler.single({
+        srcPath: path.join(...robotsTxtSrc),
+        dstPath: robotsTxt,
+        syntax: syntax()
+      })
+    }
+
     // Compile pages.
     const pageHbs = [_themepath, 'page.hbs']
+    const pages = compiler.scandir(path.join(cwd, 'pages'))
     if (isFileExists(...pageHbs)) {
-      const pages = compiler.scandir(path.join(cwd, 'pages'))
       pages.forEach(item => {
         const pageExt = path.extname(item)
         const pageName = path.basename(item, pageExt)
@@ -257,7 +277,7 @@ exports.build = (args, options) => {
     // Compile items.
     const itemHbs = [_themepath, 'item.hbs']
     const iterateItems = data.map((item, index) => {
-      new Promise(async resolve => {
+      return new Promise(async resolve => {
         let _item = item.item
 
         if (isFileExists(...itemHbs)) {
@@ -325,29 +345,78 @@ exports.build = (args, options) => {
             }).catch(logger.error)
           }
         }
-      }).catch(logger.error)
+      })
     })
 
     // Build items.
-    Promise.all(iterateItems).then(() => {
-      // Apply after build hoks.
-      if (typeof _buildHooks.post === 'function') {
-        _buildHooks.post(_data)
+    const buildItems = Promise.all(iterateItems)
+
+    // Apply after build hooks.
+    const buildPostHook = new Promise(async resolve => {
+      const applyPostHook = () => {
+        if (typeof _buildHooks.post === 'function') {
+          _buildHooks.post(data)
+        }
+        resolve()
       }
 
-      setTimeout(() => {
-        loader.stop()
-        logger.success(message.DONE)
-      }, 1000)
-    }).catch(logger.error)
+      await buildItems.then(applyPostHook).catch(logger.error)
+    })
+
+    // Build sitemap.
+    const buildSitemap = new Promise(async resolve => {
+      const sitemaps = []
+      const compileSitemap = () => {
+        if (!project.settings.sitemap) {
+          return resolve()
+        }
+
+        for (const page in project.meta.pages) {
+          const _pagepath = path.join(_distpath, page)
+          const _time = moment(new Date(statSync(`${_pagepath}.html`).mtime))
+          sitemaps.push({
+            url: `${project.site.url}/${page}.html`,
+            lastmod: _time.format('YYYY-MM-DD')
+          })
+        }
+
+        const items = compiler.scandir(_itempath)
+        items.forEach(item => {
+          const _time = moment(new Date(statSync(path.join(_itempath, item)).mtime))
+          sitemaps.push({
+            url: `${project.site.url}/${project.settings.slug.item}/${item}`,
+            lastmod: _time.format('YYYY-MM-DD')
+          })
+        })
+
+        const sitemapHbs = [_themepath, 'sitemap.hbs']
+        const sitemapXML = path.join(_distpath, 'sitemap.xml')
+        if (isFileExists(...sitemapHbs) && (!isFileExists(sitemapXML) || options.overwrite)) {
+          compiler.single({
+            srcPath: path.join(...sitemapHbs),
+            dstPath: sitemapXML,
+            syntax: syntax({}, {
+              sitemaps,
+              is: {
+                sitemap: true
+              }
+            })
+          })
+        }
+        resolve()
+      }
+
+      await buildPostHook.then(compileSitemap).catch(logger.error)
+    })
+
+    // Finish.
+    const stopLoader = () => {
+      loader.stop()
+      logger.success(message.DONE)
+    }
+    (async () => await buildSitemap.then(setTimeout(stopLoader, 1000)).catch(logger.error))()
   }
 
-  const buildParallel = filename => new Promise(resolve => {
-    csv
-      .fromStream(createReadStream(path.join(cwd, 'csv', filename)), {headers : true})
-      .on('data', item => data.push({filename, item}))
-      .on('end', resolve)
-  })
-
-  Promise.all(csvList.map(buildParallel)).then(build).catch(logger.error)
+  // Compile all.
+  (async () => await parsingCSV.then(build).catch(logger.error))()
 }
