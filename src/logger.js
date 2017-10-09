@@ -24,7 +24,9 @@ exports.blank = blank
 exports.error = err => {
   const msg = err.message || err
   blank(chalk.red(msg))
+  /* eslint-disable unicorn/no-process-exit */
   process.exit(1)
+  /* eslint-enable unicorn/no-process-exit */
 }
 
 exports.success = msg => {
@@ -32,7 +34,7 @@ exports.success = msg => {
 }
 
 exports.loader = msg => {
-  const loader = ora( msg.replace(msgRegx, `${chalk.bold.cyan('$1')}`))
+  const loader = ora(msg.replace(msgRegx, `${chalk.bold.cyan('$1')}`))
   loader.spinner = {
     interval: 70,
     frames: [

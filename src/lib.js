@@ -1,12 +1,12 @@
 const path = require('path')
 const {readFileSync, existsSync, statSync, createReadStream} = require('fs')
+const crypto = require('crypto')
 const mkdirp = require('mkdirp')
 const rimraf = require('rimraf')
 const slugify = require('node-slugify')
 const csv = require('fast-csv')
 const hbs = require('handlebars')
 const download = require('download')
-const crypto = require('crypto')
 const moment = require('moment')
 const logger = require('./logger')
 const message = require('./messages')
@@ -80,14 +80,16 @@ exports.build = (args, options) => {
 
   let csvList = []
 
-  if (!args.csvFile) {
+  if (args.csvFile === undefined) {
     csvList = compiler.scandir(csvDir).filter(item => {
       return path.extname(item) === '.csv'
     })
+  }
+
+  if (args.csvFile && isFileExists(cwd, 'csv', `${args.csvFile}.csv`)) {
+    csvList.push(`${args.csvFile}.csv`)
   } else {
-    if (isFileExists(cwd, 'csv', `${args.csvFile}.csv`)) {
-      csvList.push(`${args.csvFile}.csv`)
-    }
+    logger.error(message.INVALID_CSV_FILE)
   }
 
   if (csvList.length === 0) {
@@ -98,7 +100,7 @@ exports.build = (args, options) => {
   const parsingCSV = Promise.all(csvList.map(
     filename => new Promise(resolve => {
       csv
-        .fromStream(createReadStream(path.join(cwd, 'csv', filename)), {headers : true})
+        .fromStream(createReadStream(path.join(cwd, 'csv', filename)), {headers: true})
         .on('data', items => data.push({filename, items}))
         .on('end', resolve)
     })
@@ -293,7 +295,7 @@ exports.build = (args, options) => {
             }
           })
 
-          let slug = _syntax.slug || index
+          const slug = _syntax.slug || index
           const dstPath = path.join(_itempath, `${slug}.html`)
 
           // Download image.
@@ -312,7 +314,7 @@ exports.build = (args, options) => {
             const imgurl = _downloader.pre(_item[imgcolumn])
             _item[imgcolumn] = imgurl
 
-            if (imgurl && !isFileExists(path.join(_uploadpath, imgname)) || options.overwrite) {
+            if ((imgurl && !isFileExists(path.join(_uploadpath, imgname))) || options.overwrite) {
               downloadImg = (() => new Promise(async resolve => {
                 await download(imgurl, _uploadpath, {
                   filename: imgname
@@ -412,12 +414,14 @@ exports.build = (args, options) => {
 
         // Add pages.
         for (const page in project.meta.pages) {
-          const _pagepath = path.join(_distpath, page)
-          const _time = moment(new Date(statSync(`${_pagepath}.html`).mtime))
-          sitemaps.push({
-            url: `${project.site.url}/${page}.html`,
-            lastmod: _time.format('YYYY-MM-DD')
-          })
+          if (Object.prototype.hasOwnProperty.call(project.meta.pages, page)) {
+            const _pagepath = path.join(_distpath, page)
+            const _time = moment(new Date(statSync(`${_pagepath}.html`).mtime))
+            sitemaps.push({
+              url: `${project.site.url}/${page}.html`,
+              lastmod: _time.format('YYYY-MM-DD')
+            })
+          }
         }
 
         // Add items.
@@ -471,9 +475,13 @@ exports.build = (args, options) => {
       loader.stop()
       logger.success(message.DONE)
     }
-    (async () => await buildSitemap.then(setTimeout(stopLoader, 1000)).catch(logger.error))()
+    (async () => {
+      await buildSitemap.then(setTimeout(stopLoader, 1000)).catch(logger.error)
+    })()
   }
 
   // Compile all.
-  (async () => await parsingCSV.then(build).catch(logger.error))()
+  (async () => {
+    await parsingCSV.then(build).catch(logger.error)
+  })()
 }
