@@ -51,8 +51,8 @@
     "wpautop": "^0.2.2"
   },
   "files": [
-    "lib.js",
-    "bin"
+    "bin",
+    "src"
   ],
   "bin": {
     "cth": "bin/cth"
