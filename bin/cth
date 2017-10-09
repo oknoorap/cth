@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 
+const path = require('path')
 const program = require('caporal')
-const cth = require('../src/lib')
-const pkg = require('../package.json')
+
+const root = path.resolve(__dirname, '..')
+const cth = require(path.join(root, 'src/lib'))
+const pkg = require(path.join(root, 'package.json'))
 
 program
   .name(pkg.name)

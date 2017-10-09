@@ -39,6 +39,7 @@
   },
   "dependencies": {
     "caporal": "^0.7.0",
+    "chalk": "^2.1.0",
     "download": "^6.2.5",
     "fast-csv": "^2.4.1",
     "handlebars": "^4.0.10",
