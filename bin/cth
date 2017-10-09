@@ -11,7 +11,7 @@ program
 
 program
   .command('new')
-  .argument('<project-name>', 'Project name', program.STRING)
+  .argument('[project-name]', 'Project name', program.STRING)
   .description('Init new project')
   .action(cth.new)
 

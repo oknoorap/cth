@@ -1,0 +1,10 @@
+{{{fakevar '~> header'}}}
+
+<article>
+  {{{fakevar '#each items~'}}}
+    {{{fakevar '#if this.title'}}}<h1>{{{fakevar 'this.title'}}}</h1>{{{fakevar '/if'}}}
+    {{{fakevar '{autop this.content}'}}}
+  {{{fakevar '~/each'}}}
+</article>
+
+{{{fakevar '~> footer'}}}

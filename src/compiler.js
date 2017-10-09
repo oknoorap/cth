@@ -2,6 +2,10 @@ const path = require('path')
 const {writeFileSync, readdirSync, readFileSync, statSync, existsSync} = require('fs')
 const mkdirp = require('mkdirp')
 const hbs = require('handlebars')
+const wpautop = require('wpautop')
+
+hbs.registerHelper('fakevar', val => `{{${val}}}`)
+hbs.registerHelper('autop', val => wpautop(val))
 
 const scandir = dir => readdirSync(dir)
 

@@ -1,6 +1,6 @@
 {
   "site": {
-    "url": "/",
+    "url": "https://example.com",
     "title": "Example Project",
     "description": "Tagline or short description of example project"
   },
@@ -22,19 +22,19 @@
 
   "meta": {
     "home": {
-      "title": "{{site.title}}",
-      "description": "{{site.description}}"
+      "title": "{{{fakevar 'site.title'}}}",
+      "description": "{{{fakevar 'site.description'}}}"
     },
 
-    "single": {
-      "title": "{{item.title}} | {{site.title}}",
-      "description": "{{item.description}}",
-      "slug": "{{item.title}}"
+    "item": {
+      "title": "{{{fakevar 'item.title'}}}",
+      "description": "{{{fakevar 'item.content'}}}",
+      "slug": "{{{fakevar 'item.title'}}}"
     },
 
     "pages": {
       "about": {
-        "title": "About Us | {{single.title}}"
+        "title": "About Us"
       }
     }
   }

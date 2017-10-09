@@ -7,6 +7,7 @@ const csv = require('fast-csv')
 const hbs = require('handlebars')
 const download = require('download')
 const crypto = require('crypto')
+const moment = require('moment')
 const logger = require('./logger')
 const message = require('./messages')
 const compiler = require('./compiler')
@@ -24,6 +25,10 @@ const isDirExists = (...dirs) => {
 exports.new = args => {
   const projectName = slugify(args.projectName)
   const projectDir = path.join(cwd, projectName)
+
+  if (!args.projectName) {
+    logger.error(message.PROJECT_NAME_UNAVAILABLE)
+  }
 
   if (isDirExists(projectDir)) {
     logger.error(`'${projectName}' ${message.FOLDER_ALREADY_EXISTS}`)
@@ -72,10 +77,6 @@ exports.build = (args, options) => {
 
   const project = require(path.join(cwd, 'project.json'))
   const csvDir = path.join(cwd, 'csv')
-  const distDir = path.join(cwd, 'dist')
-  const hooksDir = path.join(cwd, 'hooks')
-  const pagesDir = path.join(cwd, 'pages')
-  const themesDir = path.join(cwd, 'themes')
 
   let csvList = []
 
@@ -93,11 +94,18 @@ exports.build = (args, options) => {
     logger.error(message.NO_CSV_FILE)
   }
 
-  const data = []
-  const build = async () => {
-    const loader = logger.loader(message.BUILD_LOADING)
-    let _data = await data
+  let data = []
+  const parsingCSV = Promise.all(csvList.map(
+    filename => new Promise(resolve => {
+      csv
+        .fromStream(createReadStream(path.join(cwd, 'csv', filename)), {headers : true})
+        .on('data', items => data.push({filename, items}))
+        .on('end', resolve)
+    })
+  ))
 
+  const build = () => {
+    const loader = logger.loader(message.BUILD_LOADING)
     const _themepath = path.join(cwd, 'themes', project.settings.theme)
     const _distpath = path.join(cwd, 'dist')
     if (options.clean) {
@@ -123,7 +131,7 @@ exports.build = (args, options) => {
 
     // Apply pre build hooks.
     if (typeof _buildHooks.pre === 'function') {
-      _data = _buildHooks.pre(_data)
+      data = _buildHooks.pre(data)
     }
 
     // Register custom handlebars helper
@@ -144,7 +152,7 @@ exports.build = (args, options) => {
     // Downloader hooks
     let _downloader = {
       pre: url => url,
-      post: file => file
+      post: () => new Promise(resolve => resolve)
     }
     if (isFileExists(cwd, 'hooks', 'downloader.js')) {
       _downloader = Object.assign(_downloader, require(path.join(cwd, 'hooks', 'downloader')))
@@ -180,7 +188,9 @@ exports.build = (args, options) => {
         is: {
           home: false,
           item: false,
-          page: false
+          page: false,
+          sitemap: true,
+          imgdownloaded: false
         }
       }, data)
 
@@ -214,10 +224,11 @@ exports.build = (args, options) => {
 
     // Compile homepage.
     const homeHbs = [_themepath, 'home.hbs']
-    if (isFileExists(...homeHbs)) {
+    const indexHtml = path.join(_distpath, 'index.html')
+    if (isFileExists(...homeHbs) && (!isFileExists(indexHtml) || options.overwrite)) {
       compiler.single({
         srcPath: path.join(...homeHbs),
-        dstPath: path.join(_distpath, 'index.html'),
+        dstPath: indexHtml,
         syntax: syntax(project.meta.home, {
           is: {
             home: true
@@ -226,11 +237,48 @@ exports.build = (args, options) => {
       })
     }
 
+    // Compile robots.txt
+    const robotsTxtSrc = [_themepath, 'robots.txt']
+    const robotsTxt = path.join(_distpath, 'robots.txt')
+    if (project.settings.robots && (!isFileExists(robotsTxt) || options.overwrite)) {
+      compiler.single({
+        srcPath: path.join(...robotsTxtSrc),
+        dstPath: robotsTxt,
+        syntax: syntax()
+      })
+    }
+
+    // Compile pages.
+    const pageHbs = [_themepath, 'page.hbs']
+    const pages = compiler.scandir(path.join(cwd, 'pages'))
+    if (isFileExists(...pageHbs)) {
+      pages.forEach(item => {
+        const pageExt = path.extname(item)
+        const pageName = path.basename(item, pageExt)
+        const pageHtml = path.join(_distpath, `${pageName}.html`)
+
+        if (pageName in project.meta.pages && pageExt === '.hbs' && (!isFileExists(pageHtml) || options.overwrite)) {
+          compiler.single({
+            srcPath: path.join(...pageHbs),
+            dstPath: pageHtml,
+            syntax: syntax(project.meta.pages[pageName], {
+              page: Object.assign({
+                content: readFileSync(path.join(cwd, 'pages', item))
+              }, project.meta.pages[pageName]),
+              is: {
+                page: true
+              }
+            })
+          })
+        }
+      })
+    }
+
     // Compile items.
     const itemHbs = [_themepath, 'item.hbs']
     const iterateItems = data.map((item, index) => {
-      new Promise(async resolve => {
-        let _item = item.item
+      return new Promise(async resolve => {
+        let _item = item.items
 
         if (isFileExists(...itemHbs)) {
           // Apply each build item hooks.
@@ -239,7 +287,7 @@ exports.build = (args, options) => {
           }
 
           const _syntax = syntax(project.meta.item, {
-            item: _item,
+            items: [_item],
             is: {
               item: true
             }
@@ -249,78 +297,183 @@ exports.build = (args, options) => {
           const dstPath = path.join(_itempath, `${slug}.html`)
 
           // Download image.
-          let downloadImg = () => new Promise(resolve => {
+          let downloadImg = (() => new Promise(resolve => {
             resolve()
-          })
+          }))()
 
-          if (!existsSync(dstPath) || options.overwrite) {
-            const {saveimg, imgcolumn} = project.settings.data
+          const {saveimg, imgcolumn} = project.settings.data
 
-            if (saveimg && imgcolumn in _item) {
-              const hash = crypto.createHash('md5').update(_item[imgcolumn]).digest('hex')
-              const imgext = path.extname(_item[imgcolumn])
-              const imgname = `${slug}-${hash}${imgext}`
+          if (saveimg && imgcolumn in _item) {
+            const hash = crypto.createHash('md5').update(_item[imgcolumn]).digest('hex')
+            const imgext = path.extname(_item[imgcolumn])
+            const imgname = `${slug}-${hash}${imgext}`
 
-              downloadImg = () => new Promise(resolve => {
-                // Apply predownload hooks.
-                const imgurl = _downloader.pre(_item[imgcolumn])
+            // Apply predownload hooks.
+            const imgurl = _downloader.pre(_item[imgcolumn])
+            _item[imgcolumn] = imgurl
 
-                download(imgurl, _uploadpath, {
+            if (imgurl && !isFileExists(path.join(_uploadpath, imgname)) || options.overwrite) {
+              downloadImg = (() => new Promise(async resolve => {
+                await download(imgurl, _uploadpath, {
                   filename: imgname
                 }).then(() => {
-                  _item[imgcolumn] = imgname
+                  _item[imgcolumn] = path.join('..', project.settings.slug.upload, imgname)
+                  _syntax.is.imgdownloaded = true
 
                   // Apply post-download hooks.
-                  _downloader.post(path.join(_uploadpath, imgname))
-                  resolve()
-                }).catch(logger.error)
-              })
+                  const _imgpath = path.join(_uploadpath, imgname)
+                  if (existsSync(_imgpath)) {
+                    _downloader.post(path.join(_uploadpath, imgname)).then(() => {
+                      resolve()
+                    }).catch(logger.error)
+                  } else {
+                    resolve()
+                  }
+                }).catch(resolve)
+              }))()
             }
           }
 
           if (!existsSync(dstPath) || options.overwrite) {
-            await downloadImg().then(() => {
-              loader.frame()
-              loader.text = `Compiling ${item.filename} #${index}`
+            await downloadImg.then(async () => {
+              if (project.settings.data.multiple) {
+                loader.frame()
+                loader.text = `Compiling ${item.filename} #${index}`
 
-              compiler.single({
-                srcPath: path.join(...itemHbs),
-                dstPath,
-                syntax: Object.assign(_syntax, {
-                  item: _item
+                compiler.single({
+                  srcPath: path.join(...itemHbs),
+                  dstPath,
+                  syntax: Object.assign(_syntax, {
+                    items: [_item]
+                  })
                 })
-              })
-              resolve()
+              }
+              resolve(_item)
             }).catch(logger.error)
           }
+        }
+      })
+    })
+
+    // Build items.
+    const buildItems = Promise.all(iterateItems)
+
+    // Build multiple items.
+    const buildMultipleItems = new Promise(async resolve => {
+      await buildItems.then(items => {
+        if (project.settings.data.multiple) {
+          return resolve()
+        }
+
+        let title = 'Untitled'
+        items.forEach(item => {
+          if (item.title) {
+            title = item.title
+          }
+        })
+
+        const slug = slugify(title)
+        const dstPath = path.join(_itempath, `${slug}.html`)
+
+        if (isFileExists(...itemHbs)) {
+          compiler.single({
+            srcPath: path.join(...itemHbs),
+            dstPath,
+            syntax: syntax(project.meta.item, {
+              items,
+              is: {
+                item: true
+              }
+            })
+          })
+
+          resolve()
         }
       }).catch(logger.error)
     })
 
-    // Build items.
-    Promise.all(iterateItems).then(() => {
-      // Apply after build hoks.
-      if (typeof _buildHooks.post === 'function') {
-        _buildHooks.post(_data)
+    // Apply after build hooks.
+    const buildPostHook = new Promise(async resolve => {
+      await buildMultipleItems.then(() => {
+        if (typeof _buildHooks.post === 'function') {
+          _buildHooks.post(data)
+        }
+        resolve()
+      }).catch(logger.error)
+    })
+
+    // Build sitemap.
+    const buildSitemap = new Promise(async resolve => {
+      const sitemaps = []
+      const compileSitemap = () => {
+        if (!project.settings.sitemap) {
+          return resolve()
+        }
+
+        // Add pages.
+        for (const page in project.meta.pages) {
+          const _pagepath = path.join(_distpath, page)
+          const _time = moment(new Date(statSync(`${_pagepath}.html`).mtime))
+          sitemaps.push({
+            url: `${project.site.url}/${page}.html`,
+            lastmod: _time.format('YYYY-MM-DD')
+          })
+        }
+
+        // Add items.
+        const items = compiler.scandir(_itempath)
+        items.forEach(item => {
+          const _time = moment(new Date(statSync(path.join(_itempath, item)).mtime))
+          sitemaps.push({
+            url: `${project.site.url}/${project.settings.slug.item}/${item}`,
+            lastmod: _time.format('YYYY-MM-DD')
+          })
+        })
+
+        // Build sitemap.xml
+        const sitemapHbs = [_themepath, 'sitemap.hbs']
+        const sitemapXML = path.join(_distpath, 'sitemap.xml')
+        if (isFileExists(...sitemapHbs) && (!isFileExists(sitemapXML) || options.overwrite)) {
+          compiler.single({
+            srcPath: path.join(...sitemapHbs),
+            dstPath: sitemapXML,
+            syntax: syntax({}, {
+              sitemaps,
+              is: {
+                sitemap: true
+              }
+            })
+          })
+        }
+
+        // Copy xsl.
+        const sitemapXSLSrc = [_themepath, 'sitemap.xsl']
+        const sitemapXSLDst = path.join(_distpath, 'sitemap.xsl')
+        if (isFileExists(...sitemapXSLSrc) && (!isFileExists(sitemapXSLDst) || options.overwrite)) {
+          compiler.single({
+            srcPath: path.join(...sitemapXSLSrc),
+            dstPath: sitemapXSLDst,
+            syntax: syntax({}, {
+              is: {
+                sitemap: true
+              }
+            })
+          })
+        }
+        resolve()
       }
 
-      setTimeout(() => {
-        loader.stop()
-        logger.success(message.DONE)
-      }, 1000)
-    }).catch(logger.error)
+      await buildPostHook.then(compileSitemap).catch(logger.error)
+    })
+
+    // Finish.
+    const stopLoader = () => {
+      loader.stop()
+      logger.success(message.DONE)
+    }
+    (async () => await buildSitemap.then(setTimeout(stopLoader, 1000)).catch(logger.error))()
   }
 
-  const buildParallel = filename => new Promise(resolve => {
-    csv
-      .fromStream(createReadStream(path.join(cwd, 'csv', filename)), {headers : true})
-      .on('data', item => {
-        data.push({
-          filename,
-          item
-        })
-      })
-      .on('end', resolve)
-  })
-  Promise.all(csvList.map(buildParallel)).then(build).catch(logger.error)
+  // Compile all.
+  (async () => await parsingCSV.then(build).catch(logger.error))()
 }
