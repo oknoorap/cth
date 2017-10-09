@@ -84,9 +84,7 @@ exports.build = (args, options) => {
     csvList = compiler.scandir(csvDir).filter(item => {
       return path.extname(item) === '.csv'
     })
-  }
-
-  if (args.csvFile && isFileExists(cwd, 'csv', `${args.csvFile}.csv`)) {
+  } else if (args.csvFile && isFileExists(cwd, 'csv', `${args.csvFile}.csv`)) {
     csvList.push(`${args.csvFile}.csv`)
   } else {
     logger.error(message.INVALID_CSV_FILE)
