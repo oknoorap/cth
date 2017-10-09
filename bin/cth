@@ -1,4 +1,4 @@
-#!/bin/bash node
+#!/usr/bin/env node
 
 const program = require('caporal')
 const cth = require('../src/lib')

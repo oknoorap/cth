@@ -4,10 +4,10 @@
 ## Install
 ```bash
 # NPM
-npm install cth --save
+npm install cth -g
 
 # Yarn
-yarn add cth
+yarn global add cth
 ```
 
 ## Usage
