@@ -99,7 +99,7 @@ exports.build = (args, options) => {
     filename => new Promise(resolve => {
       csv
         .fromStream(createReadStream(path.join(cwd, 'csv', filename)), {headers : true})
-        .on('data', item => data.push({filename, item}))
+        .on('data', items => data.push({filename, items}))
         .on('end', resolve)
     })
   ))
@@ -278,7 +278,7 @@ exports.build = (args, options) => {
     const itemHbs = [_themepath, 'item.hbs']
     const iterateItems = data.map((item, index) => {
       return new Promise(async resolve => {
-        let _item = item.item
+        let _item = item.items
 
         if (isFileExists(...itemHbs)) {
           // Apply each build item hooks.
@@ -287,7 +287,7 @@ exports.build = (args, options) => {
           }
 
           const _syntax = syntax(project.meta.item, {
-            items: [_item],
+            item: _item,
             is: {
               item: true
             }
@@ -335,18 +335,20 @@ exports.build = (args, options) => {
           }
 
           if (!existsSync(dstPath) || options.overwrite) {
-            await downloadImg.then(() => {
-              loader.frame()
-              loader.text = `Compiling ${item.filename} #${index}`
+            await downloadImg.then(async () => {
+              if (project.settings.data.multiple) {
+                loader.frame()
+                loader.text = `Compiling ${item.filename} #${index}`
 
-              compiler.single({
-                srcPath: path.join(...itemHbs),
-                dstPath,
-                syntax: Object.assign(_syntax, {
-                  item: _item
+                compiler.single({
+                  srcPath: path.join(...itemHbs),
+                  dstPath,
+                  syntax: Object.assign(_syntax, {
+                    items: [_item]
+                  })
                 })
-              })
-              resolve()
+              }
+              resolve(_item)
             }).catch(logger.error)
           }
         }
@@ -356,16 +358,48 @@ exports.build = (args, options) => {
     // Build items.
     const buildItems = Promise.all(iterateItems)
 
+    // Build multiple items.
+    const buildMultipleItems = new Promise(async resolve => {
+      await buildItems.then(items => {
+        if (project.settings.data.multiple) {
+          return resolve()
+        }
+
+        let title = 'Untitled'
+        items.forEach(item => {
+          if (item.title) {
+            title = item.title
+          }
+        })
+
+        const slug = slugify(title)
+        const dstPath = path.join(_itempath, `${slug}.html`)
+
+        if (isFileExists(...itemHbs)) {
+          compiler.single({
+            srcPath: path.join(...itemHbs),
+            dstPath,
+            syntax: syntax(project.meta.item, {
+              items,
+              is: {
+                item: true
+              }
+            })
+          })
+
+          resolve()
+        }
+      }).catch(logger.error)
+    })
+
     // Apply after build hooks.
     const buildPostHook = new Promise(async resolve => {
-      const applyPostHook = () => {
+      await buildMultipleItems.then(() => {
         if (typeof _buildHooks.post === 'function') {
           _buildHooks.post(data)
         }
         resolve()
-      }
-
-      await buildItems.then(applyPostHook).catch(logger.error)
+      }).catch(logger.error)
     })
 
     // Build sitemap.
@@ -376,6 +410,7 @@ exports.build = (args, options) => {
           return resolve()
         }
 
+        // Add pages.
         for (const page in project.meta.pages) {
           const _pagepath = path.join(_distpath, page)
           const _time = moment(new Date(statSync(`${_pagepath}.html`).mtime))
@@ -385,6 +420,7 @@ exports.build = (args, options) => {
           })
         }
 
+        // Add items.
         const items = compiler.scandir(_itempath)
         items.forEach(item => {
           const _time = moment(new Date(statSync(path.join(_itempath, item)).mtime))
@@ -394,6 +430,7 @@ exports.build = (args, options) => {
           })
         })
 
+        // Build sitemap.xml
         const sitemapHbs = [_themepath, 'sitemap.hbs']
         const sitemapXML = path.join(_distpath, 'sitemap.xml')
         if (isFileExists(...sitemapHbs) && (!isFileExists(sitemapXML) || options.overwrite)) {
@@ -409,6 +446,7 @@ exports.build = (args, options) => {
           })
         }
 
+        // Copy xsl.
         const sitemapXSLSrc = [_themepath, 'sitemap.xsl']
         const sitemapXSLDst = path.join(_distpath, 'sitemap.xsl')
         if (isFileExists(...sitemapXSLSrc) && (!isFileExists(sitemapXSLDst) || options.overwrite)) {
