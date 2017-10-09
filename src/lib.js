@@ -80,15 +80,19 @@ exports.build = (args, options) => {
 
   let csvList = []
 
+  /* eslint-disable no-lonely-if */
   if (args.csvFile === undefined) {
     csvList = compiler.scandir(csvDir).filter(item => {
       return path.extname(item) === '.csv'
     })
-  } else if (args.csvFile && isFileExists(cwd, 'csv', `${args.csvFile}.csv`)) {
-    csvList.push(`${args.csvFile}.csv`)
   } else {
-    logger.error(message.INVALID_CSV_FILE)
+    if (isFileExists(cwd, 'csv', `${args.csvFile}.csv`)) {
+      csvList.push(`${args.csvFile}.csv`)
+    } else {
+      logger.error(message.INVALID_CSV_FILE)
+    }
   }
+  /* eslint-enable no-lonely-if */
 
   if (csvList.length === 0) {
     logger.error(message.NO_CSV_FILE)
