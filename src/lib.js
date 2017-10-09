@@ -287,7 +287,7 @@ exports.build = (args, options) => {
           }
 
           const _syntax = syntax(project.meta.item, {
-            item: _item,
+            items: [_item],
             is: {
               item: true
             }
