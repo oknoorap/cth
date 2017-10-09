@@ -379,7 +379,7 @@ exports.build = (args, options) => {
         const slug = slugify(title)
         const dstPath = path.join(_itempath, `${slug}.html`)
 
-        if (isFileExists(...itemHbs)) {
+        if (isFileExists(...itemHbs) && (!existsSync(dstPath) || options.overwrite)) {
           compiler.single({
             srcPath: path.join(...itemHbs),
             dstPath,
@@ -390,9 +390,9 @@ exports.build = (args, options) => {
               }
             })
           })
-
-          resolve()
         }
+
+        resolve()
       }).catch(logger.error)
     })
 
