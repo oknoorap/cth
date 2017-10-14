@@ -3,9 +3,23 @@ const {writeFileSync, readdirSync, readFileSync, statSync, existsSync} = require
 const mkdirp = require('mkdirp')
 const hbs = require('handlebars')
 const wpautop = require('wpautop')
+const sample = require('lodash.samplesize')
 
 hbs.registerHelper('fakevar', val => `{{${val}}}`)
 hbs.registerHelper('autop', val => wpautop(val))
+hbs.registerHelper('related', (items, length = 1, options) => {
+  let out = ''
+
+  if (items && Array.isArray(items)) {
+    length = (length < 1) ? 1 : length
+    const randItems = sample(items, length)
+    for (let i = 0; i < length; i++) {
+      out += options.fn(randItems[i])
+    }
+  }
+
+  return out
+})
 
 const scandir = dir => readdirSync(dir)
 
