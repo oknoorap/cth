@@ -43,6 +43,7 @@
     "download": "^6.2.5",
     "fast-csv": "^2.4.1",
     "handlebars": "^4.0.10",
+    "html-minifier": "^3.5.5",
     "lodash.samplesize": "^4.2.0",
     "mkdirp": "^0.5.1",
     "moment": "^2.18.1",
