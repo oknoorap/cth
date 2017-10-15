@@ -32,6 +32,12 @@ const fileCompiler = ({srcPath, dstPath, syntax}) => {
     output = compiler(syntax)
   }
 
+  if (['.html', '.css', '.xml'].includes(path.extname(dstPath))) {
+    output = HTMLMinify(output, {
+      collapseWhitespace: true
+    })
+  }
+
   writeFileSync(dstPath, output, 'utf-8')
 }
 
