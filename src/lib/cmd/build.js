@@ -319,7 +319,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
         compiler.single({
           srcPath: path.join(...srcPath),
           dstPath,
-          syntax,
+          syntax
         })
       }
 
@@ -438,7 +438,6 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
         robot: true
       }
     })
-
 
     await buildSitemap.then(() => {
       loader.text = 'Compile robots.txt'

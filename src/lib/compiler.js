@@ -4,7 +4,7 @@ const mkdirp = require('mkdirp')
 const hbs = require('handlebars')
 const wpautop = require('wpautop')
 const sample = require('lodash.samplesize')
-const {minify: HTMLMinify} = require('html-minifier')
+const {minify: htmlMinify} = require('html-minifier')
 
 hbs.registerHelper('fakevar', val => `{{${val}}}`)
 hbs.registerHelper('autop', val => wpautop(val))
@@ -60,7 +60,7 @@ const fileCompiler = ({srcPath, dstPath, syntax}) => {
   }
 
   if (['.html', '.css', '.xml'].includes(path.extname(dstPath))) {
-    output = HTMLMinify(output, {
+    output = htmlMinify(output, {
       collapseWhitespace: true
     })
   }
