@@ -58,6 +58,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
   const _pagepath = path.join(cwd, 'pages')
   const _uploadpath = path.join(_distpath, settings.slug.upload)
   const _itempath = path.join(_distpath, settings.slug.item)
+  const loader = logger.loader(message.BUILD_LOADING)
 
   // Is cleanup?
   if (clean) {
@@ -145,6 +146,8 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
   // Build Files Map.
   const buildMap = filename => new Promise(resolve => {
+    loader.text = `Compile ${filename}`
+
     const csvPath = path.join(cwd, 'csv', filename)
     const itemTplPath = [_themepath, 'item.hbs']
     let items = []
@@ -219,20 +222,20 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
               // Apply each item hooks.
               item = $buildHooks.each(item)
 
-              if (!isFileExists(...item.$dstPath) || overwriteItem) {
+              if (!isFileExists(item.$dstPath) || overwriteItem) {
                 compiler.single({
                   srcPath: path.join(...itemTplPath),
                   dstPath: item.$dstPath,
                   syntax: Object.assign(item.$syntax, {
-                    items: [item],
-                    data: items
+                    item: [item],
+                    items
                   })
                 })
               }
             })
           }
 
-          resolve(items)
+          resolve()
         }).catch(logger.error)
       })
 
@@ -258,7 +261,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
                 srcPath: path.join(...itemTplPath),
                 dstPath,
                 syntax: defaultSyntax({
-                  items,
+                  item: items,
                   is: {
                     item: true
                   }
@@ -267,7 +270,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
             }
           }
 
-          resolve(items)
+          resolve()
         }).catch(logger.error)
       })
 
@@ -277,12 +280,14 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
         compileNonMultipleItem
       ])
 
-      await buildParalel.then(items => {
+      await buildParalel.then(() => {
         if (typeof $buildHooks.post === 'function') {
           items = $buildHooks.post(items)
         }
+
         resolve({
           file: csvPath,
+          lastmod: moment(new Date(statSync(csvPath).mtime)).unix(),
           items
         })
       }).catch(logger.error)
@@ -301,18 +306,61 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
   const buildHome = new Promise(async resolve => {
     const srcPath = [_themepath, 'home.hbs']
     const dstPath = path.join(_distpath, 'index.html')
-    const syntax = defaultSyntax({
-      is: {home: true}
-    }, meta.home)
 
     await build.then(items => {
-      console.log('bba', items)
+      loader.text = 'Compile home'
+
       if (isFileExists(...srcPath)) {
+        const syntax = defaultSyntax({
+          items,
+          is: {home: true}
+        }, meta.home)
+
+        compiler.single({
+          srcPath: path.join(...srcPath),
+          dstPath,
+          syntax,
+        })
+      }
+
+      resolve()
+    }).catch(logger.error)
+  })
+
+  // Compile Pages.
+  const buildPages = new Promise(async resolve => {
+    const srcPath = [_themepath, 'page.hbs']
+    const pages = compiler.scandir(path.join(cwd, 'pages'))
+
+    const buildPageItem = item => {
+      const pageExt = path.extname(item)
+      const pageName = path.basename(item, pageExt)
+      const dstPath = path.join(_distpath, `${pageName}.html`)
+      const isPageExists = pageName in meta.pages && pageExt === '.hbs'
+
+      if (isPageExists && (!isFileExists(dstPath) || overwriteAll || overwritePage)) {
+        const page = Object.assign({
+          content: readFileSync(path.join(_pagepath, item))
+        }, meta.pages[pageName])
+
+        const syntax = defaultSyntax({
+          is: {page: true},
+          page
+        }, meta.pages[pageName])
+
         compiler.single({
           srcPath: path.join(...srcPath),
           dstPath,
           syntax
         })
+      }
+    }
+
+    await buildHome.then(() => {
+      loader.text = 'Compile pages'
+
+      if (isFileExists(...srcPath)) {
+        pages.forEach(buildPageItem)
       }
 
       resolve()
@@ -321,7 +369,9 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
   // Compile sitemap.
   const buildSitemap = new Promise(async resolve => {
-    await build.then(() => {
+    await buildPages.then(() => {
+      loader.text = 'Compile sitemap.xml'
+
       const sitemaps = []
 
       // Add pages.
@@ -379,44 +429,6 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
     }).catch(logger.error)
   })
 
-  // Compile Page.
-  const buildPages = new Promise(async resolve => {
-    const srcPath = [_themepath, 'page.hbs']
-    const pages = compiler.scandir(path.join(cwd, 'pages'))
-
-    const buildPageItem = item => {
-      const pageExt = path.extname(item)
-      const pageName = path.basename(item, pageExt)
-      const dstPath = path.join(_distpath, `${pageName}.html`)
-      const isPageExists = pageName in meta.pages && pageExt === '.hbs'
-
-      if (isPageExists && (!isFileExists(dstPath) || overwriteAll || overwritePage)) {
-        const page = Object.assign({
-          content: readFileSync(path.join(_pagepath, item))
-        }, meta.pages[pageName])
-
-        const syntax = defaultSyntax({
-          is: {page: true},
-          page
-        }, meta.pages[pageName])
-
-        compiler.single({
-          srcPath: path.join(...srcPath),
-          dstPath,
-          syntax
-        })
-      }
-    }
-
-    await build.then(() => {
-      if (isFileExists(...srcPath)) {
-        pages.forEach(buildPageItem)
-      }
-
-      resolve()
-    }).catch(logger.error)
-  })
-
    // Compile robots.txt.
   const buildRobots = new Promise(async resolve => {
     const srcPath = [_themepath, 'robots.txt']
@@ -427,7 +439,10 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       }
     })
 
-    await build.then(() => {
+
+    await buildSitemap.then(() => {
+      loader.text = 'Compile robots.txt'
+
       if (isFileExists(...srcPath)) {
         compiler.single({
           srcPath: path.join(...srcPath),
@@ -439,13 +454,34 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
     }).catch(logger.error)
   })
 
+  // Copy assets from theme.
+  const copyAssets = new Promise(async resolve => {
+    const assets = [_themepath, 'assets']
+
+    await build.then(() => {
+      if (isDirExists(...assets)) {
+        compiler.bulk({
+          srcDir: path.join(...assets),
+          dstDir: path.join(_distpath, 'assets')
+        })
+      }
+
+      resolve()
+    })
+  })
+
   // Done.
   Promise.all([
     buildHome,
     buildSitemap,
     buildPages,
-    buildRobots
+    buildRobots,
+    copyAssets
   ]).then(() => {
-    console.log('done')
+    setTimeout(() => {
+      loader.clear()
+      loader.stop()
+      logger.success(message.DONE)
+    }, 1000)
   }).catch(logger.error)
 }
