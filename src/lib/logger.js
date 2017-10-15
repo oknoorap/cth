@@ -21,11 +21,13 @@ const blank = (...msg) => {
 }
 exports.blank = blank
 
-exports.error = err => {
+exports.error = (err, exit = true) => {
   const msg = err.message || err
   blank(chalk.red(msg))
   /* eslint-disable unicorn/no-process-exit */
-  process.exit(1)
+  if (exit) {
+    process.exit(1)
+  }
   /* eslint-enable unicorn/no-process-exit */
 }
 

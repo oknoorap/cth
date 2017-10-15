@@ -8,9 +8,9 @@ const csv = require('fast-csv')
 const hbs = require('handlebars')
 const download = require('download')
 const moment = require('moment')
-const logger = require('./logger')
-const message = require('./messages')
-const compiler = require('./compiler')
+const logger = require('../logger')
+const message = require('../messages')
+const compiler = require('../compiler')
 
 const cwd = process.cwd()
 

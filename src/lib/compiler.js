@@ -3,9 +3,50 @@ const {writeFileSync, readdirSync, readFileSync, statSync, existsSync} = require
 const mkdirp = require('mkdirp')
 const hbs = require('handlebars')
 const wpautop = require('wpautop')
+const sample = require('lodash.samplesize')
+const {minify: htmlMinify} = require('html-minifier')
 
 hbs.registerHelper('fakevar', val => `{{${val}}}`)
 hbs.registerHelper('autop', val => wpautop(val))
+hbs.registerHelper('related', (items, size = 1, options) => {
+  let out = ''
+
+  if (items && Array.isArray(items)) {
+    size = (size < 1) ? 1 : size
+    const randItems = sample(items, size)
+    for (let i = 0; i < size; i++) {
+      out += options.fn(randItems[i])
+    }
+  }
+
+  return out
+})
+
+hbs.registerHelper('latest', (items, size = 1, options) => {
+  let out = ''
+
+  if (items && Array.isArray(items)) {
+    size = (size < 1) ? 1 : size
+
+    const newItems = []
+
+    items
+      .sort((a, b) => a.lastmod - b.lastmod)
+      .forEach(member => {
+        const data = member.items.reverse()
+        for (let i = 0; i < size; i++) {
+          newItems.push(data[i])
+        }
+      })
+
+    const randItems = sample(newItems, size)
+    for (let i = 0; i < size; i++) {
+      out += options.fn(randItems[i])
+    }
+  }
+
+  return out
+})
 
 const scandir = dir => readdirSync(dir)
 
@@ -16,6 +57,12 @@ const fileCompiler = ({srcPath, dstPath, syntax}) => {
   if (syntax) {
     const compiler = hbs.compile(input)
     output = compiler(syntax)
+  }
+
+  if (['.html', '.css', '.xml'].includes(path.extname(dstPath))) {
+    output = htmlMinify(output, {
+      collapseWhitespace: true
+    })
   }
 
   writeFileSync(dstPath, output, 'utf-8')

@@ -4,8 +4,9 @@ const path = require('path')
 const program = require('caporal')
 
 const root = path.resolve(__dirname, '..')
-const cth = require(path.join(root, 'src/lib'))
+const cth = require(path.join(root, 'src/lib/cmd'))
 const pkg = require(path.join(root, 'package.json'))
+const overwriteOpts = 'all|page|item|image'
 
 program
   .name(pkg.name)
@@ -22,7 +23,7 @@ program
   .command('build')
   .argument('[csv-file]', 'Custom csv filename in csv directory')
   .option('--clean', 'Clean directory before build', program.BOOLEAN)
-  .option('--overwrite', 'Overwrite if compiled file already exists', program.BOOLEAN)
+  .option('--overwrite', `Overwrite compiled file, accepted ${overwriteOpts.split('|').join(', ')}`, new RegExp(overwriteOpts))
   .description('Build project')
   .action(cth.build)
 
