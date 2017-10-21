@@ -170,6 +170,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       const slug = syntax.slug || index
       const dstPath = path.join(_itempath, `${slug}.html`)
 
+      item.slug = urljoin(site.url, settings.slug.item, `${slug}.html`)
       item.$syntax = syntax
       item.$dstPath = dstPath
 
