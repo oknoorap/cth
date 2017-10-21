@@ -8,6 +8,7 @@ const slugify = require('node-slugify')
 const hbs = require('handlebars')
 const download = require('download')
 const moment = require('moment')
+const urljoin = require('url-join')
 const message = require('../messages')
 const logger = require('../logger')
 const compiler = require('../compiler')
@@ -77,7 +78,15 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
   }
 
   let $helperHooks = {
-    slugify
+    slugify,
+    include: filepath => {
+      const _incpath = path.join(_themepath, filepath)
+      if (isFileExists(_incpath)) {
+        return readFileSync(_incpath, 'utf-8')
+      }
+
+      return ''
+    }
   }
 
   let $downloaderHooks = {
@@ -161,6 +170,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       const slug = syntax.slug || index
       const dstPath = path.join(_itempath, `${slug}.html`)
 
+      item.slug = urljoin(site.url, settings.slug.item, `${slug}.html`)
       item.$syntax = syntax
       item.$dstPath = dstPath
 
@@ -178,13 +188,13 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
           item[imgcolumn] = imgUrl
 
           if (isFileExists(_imgpath)) {
-            item[imgcolumn] = path.join(site.url, settings.slug.upload, imageName)
+            item[imgcolumn] = urljoin(site.url, settings.slug.upload, imageName)
           }
 
           if ((imgUrl && !isFileExists(_imgpath)) || overwriteImage) {
             const downloadImage = download(imgUrl, _uploadpath, {filename: imageName})
             await downloadImage.then(async () => {
-              item[imgcolumn] = path.join(site.url, settings.slug.upload, imageName)
+              item[imgcolumn] = urljoin(site.url, settings.slug.upload, imageName)
               syntax.is.imgdownloaded = true
 
               const postDownload = $downloaderHooks.post(_imgpath)
