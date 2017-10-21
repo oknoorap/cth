@@ -34,7 +34,7 @@ module.exports = args => {
     }
 
     compiler.bulk({
-      srcDir: path.join(__dirname, '..', 'templates'),
+      srcDir: path.join(__dirname, '..', '..', 'templates'),
       dstDir: projectDir,
       excludes: [
         'csv/.gitkeep',
