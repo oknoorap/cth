@@ -1,5 +1,5 @@
 const path = require('path')
-const {writeFileSync, readdirSync, readFileSync, statSync, existsSync} = require('fs')
+const {createReadStream, createWriteStream, writeFileSync, readdirSync, readFileSync, statSync, existsSync} = require('fs')
 const mkdirp = require('mkdirp')
 const hbs = require('handlebars')
 const wpautop = require('wpautop')
@@ -48,18 +48,31 @@ hbs.registerHelper('latest', (items, size = 1, options) => {
   return out
 })
 
+hbs.registerHelper('ifmod', function (index, mod, options) {
+  if (parseInt(index) % mod === 0) {
+    return options.fn(this)
+  }
+})
+
 const scandir = dir => readdirSync(dir)
 
 const fileCompiler = ({srcPath, dstPath, syntax}) => {
-  const input = readFileSync(srcPath, 'ascii')
+  const input = readFileSync(srcPath, 'utf-8')
+  const isImage = ['.png', '.jpg', '.gif', '.ico'].includes(path.extname(dstPath))
+  const isMinified = ['.html', '.css', '.xml'].includes(path.extname(dstPath))
   let output = input
+
+  if (isImage) {
+    createReadStream(srcPath).pipe(createWriteStream(dstPath))
+    return
+  }
 
   if (syntax) {
     const compiler = hbs.compile(input)
     output = compiler(syntax)
   }
 
-  if (['.html', '.css', '.xml'].includes(path.extname(dstPath))) {
+  if (isMinified) {
     output = htmlMinify(output, {
       collapseWhitespace: true
     })
