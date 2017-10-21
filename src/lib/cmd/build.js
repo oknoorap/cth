@@ -78,7 +78,15 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
   }
 
   let $helperHooks = {
-    slugify
+    slugify,
+    include: filepath => {
+      const _incpath = path.join(_themepath, filepath)
+      if (isFileExists(_incpath)) {
+        return readFileSync(_incpath, 'utf-8')
+      }
+
+      return ''
+    }
   }
 
   let $downloaderHooks = {
