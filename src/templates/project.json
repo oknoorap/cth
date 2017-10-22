@@ -16,7 +16,8 @@
     },
     "slug": {
       "upload": "uploads",
-      "item": "article"
+      "item": "article",
+      "sitemap": "sitemap"
     }
   },
 
@@ -30,6 +31,11 @@
       "title": "{{{fakevar 'item.title'}}}",
       "description": "{{{fakevar 'item.content'}}}",
       "slug": "{{{fakevar 'item.title'}}}"
+    },
+
+    "sitemap": {
+      "title": "{{{fakevar 'sitemap.title'}}}",
+      "description": "{{{fakevar 'sitemap.desc'}}}"
     },
 
     "pages": {

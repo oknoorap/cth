@@ -59,6 +59,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
   const _pagepath = path.join(cwd, 'pages')
   const _uploadpath = path.join(_distpath, settings.slug.upload)
   const _itempath = path.join(_distpath, settings.slug.item)
+  const _sitemappath = path.join(_distpath, settings.slug.sitemap)
   const loader = logger.loader(message.BUILD_LOADING)
 
   // Is cleanup?
@@ -69,6 +70,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
   // Directory creation.
   mkdirp.sync(_uploadpath)
   mkdirp.sync(_itempath)
+  mkdirp.sync(_sitemappath)
 
   // Register / define hooks.
   let $buildHooks = {
@@ -150,6 +152,20 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       output.slug = slugify(output.slug)
     }
 
+    const alphabet = ['0-9']
+
+    for (let i = 97; i <= 122; i++) {
+      alphabet.push(String.fromCharCode(i))
+    }
+
+    output.alphasitemap = alphabet.map(item => {
+      const slug = (item === '0-9') ? 'numeric' : item
+      return {
+        label: item,
+        slug: urljoin(site.url, settings.slug.sitemap, `${slug}.html`)
+      }
+    })
+
     return output
   }
 
@@ -199,7 +215,9 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
               const postDownload = $downloaderHooks.post(_imgpath)
               await postDownload.then(resolve).catch(reject)
-            }).catch(reject)
+            }).catch(() => {
+              reject(imgUrl)
+            })
           } else {
             resolve()
           }
@@ -211,8 +229,8 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       // Compile item.
       await saveImage.then(() => {
         resolve(item)
-      }).catch(err => {
-        logger.error(err, false)
+      }).catch(url => {
+        logger.error(`Error downloading ${url}`, false)
         resolve(item)
       })
     })
@@ -228,24 +246,34 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       const compileMultipleItem = new Promise(async resolve => {
         await buildItem.then(items => {
           if (isFileExists(...itemTplPath) && settings.data.multiple) {
-            items.forEach(item => {
-              // Apply each item hooks.
-              item = $buildHooks.each(item)
+            Promise.all(items.map(
+              item => new Promise((resolve, reject) => {
+                // Apply each item hooks.
+                item = $buildHooks.each(item)
+                try {
+                  if (!isFileExists(item.$dstPath) || overwriteItem) {
+                    compiler.single({
+                      srcPath: path.join(...itemTplPath),
+                      dstPath: item.$dstPath,
+                      syntax: Object.assign(item.$syntax, {
+                        item: [item],
+                        items
+                      })
+                    })
+                  }
 
-              if (!isFileExists(item.$dstPath) || overwriteItem) {
-                compiler.single({
-                  srcPath: path.join(...itemTplPath),
-                  dstPath: item.$dstPath,
-                  syntax: Object.assign(item.$syntax, {
-                    item: [item],
-                    items
-                  })
-                })
-              }
+                  resolve()
+                } catch (err) {
+                  reject(item)
+                }
+              })
+            ))
+            .then(resolve)
+            .catch(item => {
+              logger.error(`Fail compiling ${item.$dstPath}`, false)
+              resolve()
             })
           }
-
-          resolve()
         }).catch(logger.error)
       })
 
@@ -380,8 +408,11 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
   // Compile sitemap.
   const buildSitemap = new Promise(async resolve => {
     await buildPages.then(() => {
-      loader.text = 'Compile sitemap.xml'
+      if (!settings.sitemap) {
+        return resolve()
+      }
 
+      loader.text = 'Compile sitemap.xml'
       const sitemaps = []
 
       // Add pages.
@@ -407,7 +438,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       })
 
       // Build sitemap.xml
-      const srcPath = [_themepath, 'sitemap.hbs']
+      const srcPath = [_themepath, 'sitemap.xml']
       const dstPath = path.join(_distpath, 'sitemap.xml')
       const syntax = defaultSyntax({
         sitemaps,
@@ -450,6 +481,10 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
     })
 
     await buildSitemap.then(() => {
+      if (!settings.robots) {
+        return resolve()
+      }
+
       loader.text = 'Compile robots.txt'
 
       if (isFileExists(...srcPath)) {
@@ -461,6 +496,55 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       }
       resolve()
     }).catch(logger.error)
+  })
+
+  // Copy alphabet-sitemap
+  const buildAlphabetSitemap = new Promise(async resolve => {
+    const srcPath = [_themepath, 'sitemap.hbs']
+    const alphabet = ['numeric']
+
+    for (let i = 97; i <= 122; i++) {
+      alphabet.push(String.fromCharCode(i))
+    }
+
+    await build.then(files => {
+      let items = []
+      files.forEach(file => {
+        items = items.concat(file.items)
+      })
+
+      alphabet.forEach(char => {
+        const filteredAlphabet = items.filter(item => {
+          const title = item.title.toLowerCase()
+          if (char !== 'numeric') {
+            return title[0] === char
+          }
+
+          return title[0].charCodeAt(0) < 97 || title[0].charCodeAt(0) > 122
+        })
+
+        filteredAlphabet.sort((a, b) => a.title.localeCompare(b.title))
+
+        const dstPath = path.join(_sitemappath, `${char}.html`)
+        const syntax = defaultSyntax({
+          sitemap: {
+            title: char.toUpperCase(),
+            items: filteredAlphabet
+          },
+          is: {
+            robot: true
+          }
+        }, meta.sitemap)
+
+        compiler.single({
+          srcPath: path.join(...srcPath),
+          dstPath,
+          syntax
+        })
+      })
+
+      resolve()
+    })
   })
 
   // Copy assets from theme.
@@ -485,6 +569,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
     buildSitemap,
     buildPages,
     buildRobots,
+    buildAlphabetSitemap,
     copyAssets
   ]).then(() => {
     setTimeout(() => {

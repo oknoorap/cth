@@ -54,6 +54,10 @@ hbs.registerHelper('ifmod', function (index, mod, options) {
   }
 })
 
+hbs.registerHelper('add', (number, n) => {
+  return number + n
+})
+
 const scandir = dir => readdirSync(dir)
 
 const fileCompiler = ({srcPath, dstPath, syntax}) => {
