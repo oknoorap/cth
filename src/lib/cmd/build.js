@@ -376,20 +376,21 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       const dstPath = path.join(_distpath, `${pageName}.html`)
       const isPageExists = pageName in meta.pages && pageExt === '.hbs'
 
-      if (isPageExists && (!isFileExists(dstPath) || overwriteAll || overwritePage)) {
-        const page = Object.assign({
-          content: readFileSync(path.join(_pagepath, item))
-        }, meta.pages[pageName])
-
+      if (isPageExists && (!isFileExists(...dstPath) || overwriteAll || overwritePage)) {
+        const pageContent = readFileSync(path.join(_pagepath, item), 'utf-8')
         const syntax = defaultSyntax({
-          is: {page: true},
-          page
+          is: {page: true}
+        }, meta.pages[pageName])
+        const page = Object.assign({
+          content: hbs.compile(pageContent)(syntax)
         }, meta.pages[pageName])
 
         compiler.single({
           srcPath: path.join(...srcPath),
           dstPath,
-          syntax
+          syntax: Object.assign(syntax, {
+            page
+          })
         })
       }
     }
