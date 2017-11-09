@@ -1,5 +1,5 @@
 const path = require('path')
-const slugify = require('node-slugify')
+const slugify = require('slug')
 const mkdirp = require('mkdirp')
 const message = require('../messages')
 const logger = require('../logger')
