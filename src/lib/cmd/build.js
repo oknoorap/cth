@@ -4,7 +4,7 @@ const crypto = require('crypto')
 const csv = require('fast-csv')
 const rimraf = require('rimraf')
 const mkdirp = require('mkdirp')
-const slugify = require('node-slugify')
+const slugify = require('slug')
 const hbs = require('handlebars')
 const download = require('download')
 const moment = require('moment')
@@ -80,7 +80,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
   }
 
   let $helperHooks = {
-    slugify,
+    slugify: str => slugify(str, {symbols: false}),
     include: filepath => {
       const _incpath = path.join(_themepath, filepath)
       if (isFileExists(_incpath)) {
@@ -149,7 +149,9 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
     const output = Object.assign(syntax, data)
     if (output.slug) {
-      output.slug = slugify(output.slug)
+      output.slug = output.slug.toLowerCase()
+        .replace(/^\s+|\s+$/g, '')
+        .replace(/[-\s\\\/]+/g, '-')
     }
 
     const alphabet = ['0-9']
@@ -273,6 +275,8 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
               logger.error(`Fail compiling ${item.$dstPath}`, false)
               resolve()
             })
+          } else {
+            logger.error(`${path.join(...itemTplPath)} not found.`)
           }
         }).catch(logger.error)
       })
@@ -291,7 +295,10 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
               }
             })
 
-            const slug = slugify(title)
+            const slug = title
+              .toLowerCase()
+              .replace(/^\s+|\s+$/g, '')
+              .replace(/[-\s\\\/]+/g, '-')
             const dstPath = path.join(_itempath, `${slug}.html`)
 
             if (!isFileExists(...dstPath) || overwriteItem) {

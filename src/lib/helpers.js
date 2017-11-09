@@ -2,11 +2,13 @@ const path = require('path')
 const {existsSync, statSync, readFileSync} = require('fs')
 
 const isFileExists = (...files) => {
-  return existsSync(path.join(...files)) && statSync(path.join(...files)).isFile()
+  const filepath = path.join(...files)
+  return existsSync(filepath) && statSync(filepath).isFile()
 }
 
 const isDirExists = (...dirs) => {
-  return existsSync(path.join(...dirs)) && statSync(path.join(...dirs)).isDirectory()
+  const dirpath = path.join(...dirs)
+  return existsSync(dirpath) && statSync(dirpath).isDirectory()
 }
 
 const readFile = (...dirs) => {
