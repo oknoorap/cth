@@ -151,7 +151,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
     if (output.slug) {
       output.slug = output.slug.toLowerCase()
         .replace(/^\s+|\s+$/g, '')
-        .replace(/[-\s\\\/]+/g, '-')
+        .replace(/[-\s\\\/:]+/g, '-')
     }
 
     const alphabet = ['0-9']
@@ -178,6 +178,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
     const csvPath = path.join(cwd, 'csv', filename)
     const itemTplPath = [_themepath, 'item.hbs']
     let items = []
+    let firstSlug
 
     // Build Item Map.
     const itemMap = (item, index) => new Promise(async resolve => {
@@ -185,7 +186,12 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
         item,
         is: {item: true}
       }, meta.item)
-      const slug = syntax.slug || index
+      const slug = syntax.slug || firstSlug || index
+
+      if (!firstSlug) {
+        firstSlug = slug
+      }
+
       const dstPath = path.join(_itempath, `${slug}.html`)
 
       item.slug = urljoin(site.url, settings.slug.item, `${slug}.html`)
@@ -295,27 +301,28 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
               }
             })
 
-            const slug = title
-              .toLowerCase()
-              .replace(/^\s+|\s+$/g, '')
-              .replace(/[-\s\\\/]+/g, '-')
-            const dstPath = path.join(_itempath, `${slug}.html`)
+              const slug = title
+                .toLowerCase()
+                .replace(/^\s+|\s+$/g, '')
+                .replace(/[-\s\\\/:]+/g, '-')
 
-            if (!isFileExists(...dstPath) || overwriteItem) {
-              compiler.single({
-                srcPath: path.join(...itemTplPath),
-                dstPath,
+              const dstPath = path.join(_itempath, `${slug}.html`)
+
+              if (!isFileExists(...dstPath) || overwriteItem) {
+                compiler.single({
+                  srcPath: path.join(...itemTplPath),
+                  dstPath,
                 syntax: defaultSyntax({
                   item: items,
                   is: {
                     item: true
                   }
                 }, meta.item)
-              })
+                })
+              }
             }
-          }
 
-          resolve()
+            resolve()
         }).catch(logger.error)
       })
 
