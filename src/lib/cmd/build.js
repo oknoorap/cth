@@ -255,34 +255,38 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       const buildItem = Promise.all(items.map(itemMap))
       const compileMultipleItem = new Promise(async resolve => {
         await buildItem.then(items => {
-          if (isFileExists(...itemTplPath) && settings.data.multiple) {
-            Promise.all(items.map(
-              item => new Promise((resolve, reject) => {
-                // Apply each item hooks.
-                item = $buildHooks.each(item)
-                try {
-                  if (!isFileExists(item.$dstPath) || overwriteItem) {
-                    compiler.single({
-                      srcPath: path.join(...itemTplPath),
-                      dstPath: item.$dstPath,
-                      syntax: Object.assign(item.$syntax, {
-                        item: [item],
-                        items
+          if (isFileExists(...itemTplPath)) {
+            if (settings.data.multiple === true) {
+              Promise.all(items.map(
+                item => new Promise((resolve, reject) => {
+                  // Apply each item hooks.
+                  item = $buildHooks.each(item)
+                  try {
+                    if (!isFileExists(item.$dstPath) || overwriteItem) {
+                      compiler.single({
+                        srcPath: path.join(...itemTplPath),
+                        dstPath: item.$dstPath,
+                        syntax: Object.assign(item.$syntax, {
+                          item: [item],
+                          items
+                        })
                       })
-                    })
-                  }
+                    }
 
-                  resolve()
-                } catch (err) {
-                  reject(item)
-                }
+                    resolve()
+                  } catch (err) {
+                    reject(item)
+                  }
+                })
+              ))
+              .then(resolve)
+              .catch(item => {
+                logger.error(`Fail compiling ${item.$dstPath}`, false)
+                resolve()
               })
-            ))
-            .then(resolve)
-            .catch(item => {
-              logger.error(`Fail compiling ${item.$dstPath}`, false)
+            } else {
               resolve()
-            })
+            }
           } else {
             logger.error(`${path.join(...itemTplPath)} not found.`)
           }
@@ -291,17 +295,18 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
       const compileNonMultipleItem = new Promise(async resolve => {
         await buildItem.then(items => {
-          if (items && isFileExists(...itemTplPath) && !settings.data.multiple) {
-            let title = 'Untitled'
+          if (isFileExists(...itemTplPath)) {
+            if (items && settings.data.multiple === false) {
+              let title = 'Untitled'
 
-            items.forEach((item, index) => {
-              // Apply each item hooks.
-              items[index] = $buildHooks.each(item)
+              items.forEach((item, index) => {
+                // Apply each item hooks.
+                items[index] = $buildHooks.each(item)
 
-              if (item.title) {
-                title = item.title
-              }
-            })
+                if (item.title) {
+                  title = item.title
+                }
+              })
 
               const slug = title
                 .toLowerCase()
@@ -310,21 +315,27 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
               const dstPath = path.join(_itempath, `${slug}.html`)
 
+              const syntax = defaultSyntax({
+                item: items,
+                is: { item: true }
+              }, meta.item)
+
+              const firstItem = Object.assign({}, items[0].$syntax)
+              delete firstItem.item
+
               if (!isFileExists(...dstPath) || overwriteItem) {
                 compiler.single({
                   srcPath: path.join(...itemTplPath),
                   dstPath,
-                syntax: defaultSyntax({
-                  item: items,
-                  is: {
-                    item: true
-                  }
-                }, meta.item)
+                  syntax: Object.assign(syntax, firstItem)
                 })
               }
             }
 
             resolve()
+          } else {
+            logger.error(`${path.join(...itemTplPath)} not found.`)
+          }
         }).catch(logger.error)
       })
 
@@ -533,12 +544,15 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       alphabet.forEach(char => {
         const filteredAlphabet = items.filter(item => {
           const title = item.title.toLowerCase()
-          if (char !== 'numeric') {
-            return title[0] === char
-          }
 
-          return title[0].charCodeAt(0) < 97 || title[0].charCodeAt(0) > 122
-        })
+          if (title) {
+            if (char !== 'numeric') {
+              return title[0] === char
+            }
+
+            return title[0].charCodeAt(0) < 97 || title[0].charCodeAt(0) > 122
+          }
+        }).filter(item => item)
 
         filteredAlphabet.sort((a, b) => a.title.localeCompare(b.title))
 
