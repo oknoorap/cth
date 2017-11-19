@@ -22,26 +22,31 @@ hbs.registerHelper('related', (items, size = 1, options) => {
   return out
 })
 
-hbs.registerHelper('latest', (items, size = 1, options) => {
+hbs.registerHelper('latest', (items, size = 1, multi = true, options) => {
   let out = ''
 
   if (items && Array.isArray(items)) {
     size = (size < 1) ? 1 : size
+    size = (size > items.length) ? items.length: size
 
     const newItems = []
 
     items
       .sort((a, b) => a.lastmod - b.lastmod)
       .forEach(member => {
-        const data = member.items.reverse()
-        for (let i = 0; i < size; i++) {
-          newItems.push(data[i])
+        if (multi) {
+          const data = member.items.reverse()
+          for (let i = 0; i < size; i++) {
+            newItems.push(data[i])
+          }
+        } else {
+          newItems.push(member.items[0])
         }
       })
 
-    const randItems = sample(newItems, size)
+    const selectedItems = multi ? sample(newItems, size): newItems.reverse()
     for (let i = 0; i < size; i++) {
-      out += options.fn(randItems[i])
+      out += options.fn(selectedItems[i])
     }
   }
 
