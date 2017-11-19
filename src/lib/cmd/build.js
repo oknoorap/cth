@@ -151,7 +151,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
     if (output.slug) {
       output.slug = output.slug.toLowerCase()
         .replace(/^\s+|\s+$/g, '')
-        .replace(/[-\s\\\/:]+/g, '-')
+        .replace(/[-\s\\/:]+/g, '-')
     }
 
     const alphabet = ['0-9']
@@ -239,8 +239,8 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
       // Compile item.
       await saveImage.then(() => {
         resolve(item)
-      }).catch(url => {
-        logger.error(`Error downloading ${url}`, false)
+      }).catch(err => {
+        logger.error(`Error downloading ${err}`, false)
         resolve(item)
       })
     })
@@ -311,13 +311,13 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
               const slug = title
                 .toLowerCase()
                 .replace(/^\s+|\s+$/g, '')
-                .replace(/[-\s\\\/:]+/g, '-')
+                .replace(/[-\s\\/:]+/g, '-')
 
               const dstPath = path.join(_itempath, `${slug}.html`)
 
               const syntax = defaultSyntax({
                 item: items,
-                is: { item: true }
+                is: {item: true}
               }, meta.item)
 
               const firstItem = Object.assign({}, items[0].$syntax)
@@ -552,6 +552,8 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
             return title[0].charCodeAt(0) < 97 || title[0].charCodeAt(0) > 122
           }
+
+          return undefined
         }).filter(item => item)
 
         filteredAlphabet.sort((a, b) => a.title.localeCompare(b.title))

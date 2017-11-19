@@ -27,7 +27,7 @@ hbs.registerHelper('latest', (items, size = 1, multi = true, options) => {
 
   if (items && Array.isArray(items)) {
     size = (size < 1) ? 1 : size
-    size = (size > items.length) ? items.length: size
+    size = (size > items.length) ? items.length : size
 
     const newItems = []
 
@@ -44,7 +44,7 @@ hbs.registerHelper('latest', (items, size = 1, multi = true, options) => {
         }
       })
 
-    const selectedItems = multi ? sample(newItems, size): newItems.reverse()
+    const selectedItems = multi ? sample(newItems, size) : newItems.reverse()
     for (let i = 0; i < size; i++) {
       out += options.fn(selectedItems[i])
     }
@@ -54,7 +54,7 @@ hbs.registerHelper('latest', (items, size = 1, multi = true, options) => {
 })
 
 hbs.registerHelper('ifmod', function (index, mod, options) {
-  if (parseInt(index) % mod === 0) {
+  if (parseInt(index, 10) % mod === 0) {
     return options.fn(this)
   }
 })
