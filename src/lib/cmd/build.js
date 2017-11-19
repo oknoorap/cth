@@ -217,6 +217,8 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
           if ((imgUrl && !isFileExists(_imgpath)) || overwriteImage) {
             const downloadImage = download(imgUrl, _uploadpath, {filename: imageName})
+            logger.info(`\nDownloading ${imgUrl} ...`)
+
             await downloadImage.then(async () => {
               item[imgcolumn] = urljoin(site.url, settings.slug.upload, imageName)
               syntax.is.imgdownloaded = true
