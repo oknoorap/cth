@@ -150,7 +150,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
     const output = Object.assign(syntax, data)
     if (output.slug) {
       output.slug = output.slug.toLowerCase()
-        .replace(/^\s+|\s+$/g, '')
+        .replace(/^[,&]+|\s+|\s+$/g, '')
         .replace(/[-\s\\/:]+/g, '-')
     }
 
@@ -310,7 +310,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
               const slug = title
                 .toLowerCase()
-                .replace(/^\s+|\s+$/g, '')
+                .replace(/^[,&]+|\s+|\s+$/g, '')
                 .replace(/[-\s\\/:]+/g, '-')
 
               const dstPath = path.join(_itempath, `${slug}.html`)
