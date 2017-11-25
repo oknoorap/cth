@@ -9,6 +9,7 @@ const hbs = require('handlebars')
 const download = require('download')
 const moment = require('moment')
 const urljoin = require('url-join')
+const unescape = require('unescape')
 const message = require('../messages')
 const logger = require('../logger')
 const compiler = require('../compiler')
@@ -149,7 +150,9 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
     const output = Object.assign(syntax, data)
     if (output.slug) {
-      output.slug = output.slug.toLowerCase()
+      output.slug = unescape(output.slug)
+        .toLowerCase()
+        .replace(/[,&"!]+/g, '')
         .replace(/^\s+|\s+$/g, '')
         .replace(/[-\s\\/:]+/g, '-')
     }
@@ -224,7 +227,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
               syntax.is.imgdownloaded = true
 
               const postDownload = $downloaderHooks.post(_imgpath)
-              await postDownload.then(resolve).catch(reject)
+              await postDownload.then(() => resolve()).catch(err => reject(err))
             }).catch(() => {
               reject(imgUrl)
             })
@@ -308,8 +311,9 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
                 }
               })
 
-              const slug = title
+              const slug = unescape(title)
                 .toLowerCase()
+                .replace(/[,&"!]+/g, '')
                 .replace(/^\s+|\s+$/g, '')
                 .replace(/[-\s\\/:]+/g, '-')
 
@@ -330,9 +334,10 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
                   syntax: Object.assign(syntax, firstItem)
                 })
               }
+              resolve()
+            } else {
+              resolve()
             }
-
-            resolve()
           } else {
             logger.error(`${path.join(...itemTplPath)} not found.`)
           }
