@@ -152,7 +152,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
     if (output.slug) {
       output.slug = unescape(output.slug)
         .toLowerCase()
-        .replace(/[,&"!]+/g, '')
+        .replace(/[,&"!?]+/g, '')
         .replace(/^\s+|\s+$/g, '')
         .replace(/[-\s\\/:]+/g, '-')
     }
@@ -313,7 +313,7 @@ module.exports = async ({csvFile}, {clean, overwrite}) => {
 
               const slug = unescape(title)
                 .toLowerCase()
-                .replace(/[,&"!]+/g, '')
+                .replace(/[,&"!?]+/g, '')
                 .replace(/^\s+|\s+$/g, '')
                 .replace(/[-\s\\/:]+/g, '-')
 
